@@ -1,0 +1,37 @@
+[project]
+name = "snip-mcp"
+version = "0.1.0"
+description = "Local-only MCP server for token-efficient code retrieval via tree-sitter AST parsing"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp[cli]>=1.0.0",
+    "tree-sitter-language-pack>=0.6.0",
+    "pathspec>=0.12.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+snip-mcp = "snip_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+allow-insecure-host = ["pypi.org", "github.com", "files.pythonhosted.org"]
+native-tls = true
+link-mode = "copy"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.8.0"]
