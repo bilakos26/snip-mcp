@@ -20,7 +20,7 @@ from typing import Any
 
 import orjson
 
-from snip_mcp.parser.symbols import FileSymbols, Symbol, SymbolKind
+from snip_mcp.parser.symbols import FileSymbols, Parameter, Symbol, SymbolKind
 
 # ---------------------------------------------------------------------------
 # CodeIndex dataclass
@@ -64,6 +64,8 @@ class CodeIndex:
     language_stats: dict[str, int] = field(default_factory=dict)
     total_symbols: int = 0
     total_files: int = 0
+    call_graph: dict[str, list[str]] = field(default_factory=dict)
+    previous_symbol_hashes: dict[str, str] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -71,9 +73,27 @@ class CodeIndex:
 # ---------------------------------------------------------------------------
 
 
+def _serialize_parameter(param: Parameter) -> dict[str, Any]:
+    """Convert a :class:`Parameter` to a plain dict."""
+    return {
+        "name": param.name,
+        "type_annotation": param.type_annotation,
+        "default_value": param.default_value,
+    }
+
+
+def _deserialize_parameter(data: dict[str, Any]) -> Parameter:
+    """Reconstruct a :class:`Parameter` from a plain dict."""
+    return Parameter(
+        name=data["name"],
+        type_annotation=data.get("type_annotation", ""),
+        default_value=data.get("default_value", ""),
+    )
+
+
 def _serialize_symbol(sym: Symbol) -> dict[str, Any]:
     """Convert a :class:`Symbol` to a plain dict suitable for JSON encoding."""
-    return {
+    d: dict[str, Any] = {
         "id": sym.id,
         "name": sym.name,
         "kind": sym.kind.value,
@@ -91,10 +111,17 @@ def _serialize_symbol(sym: Symbol) -> dict[str, Any]:
         "decorators": list(sym.decorators),
         "imports": list(sym.imports),
     }
+    if sym.return_type:
+        d["return_type"] = sym.return_type
+    if sym.parameters:
+        d["parameters"] = [_serialize_parameter(p) for p in sym.parameters]
+    return d
 
 
 def _deserialize_symbol(data: dict[str, Any]) -> Symbol:
     """Reconstruct a :class:`Symbol` from a plain dict."""
+    params_raw = data.get("parameters", ())
+    parameters = tuple(_deserialize_parameter(p) for p in params_raw) if params_raw else ()
     return Symbol(
         id=data["id"],
         name=data["name"],
@@ -112,6 +139,8 @@ def _deserialize_symbol(data: dict[str, Any]) -> Symbol:
         language=data.get("language", ""),
         decorators=tuple(data.get("decorators", ())),
         imports=tuple(data.get("imports", ())),
+        return_type=data.get("return_type", ""),
+        parameters=parameters,
     )
 
 
@@ -143,7 +172,7 @@ def _deserialize_file_symbols(data: dict[str, Any]) -> FileSymbols:
 
 def _serialize_index(index: CodeIndex) -> dict[str, Any]:
     """Convert a :class:`CodeIndex` to a JSON-serialisable dict."""
-    return {
+    d: dict[str, Any] = {
         "repo_path": index.repo_path,
         "repo_name": index.repo_name,
         "files": {rp: _serialize_file_symbols(fs) for rp, fs in index.files.items()},
@@ -154,6 +183,11 @@ def _serialize_index(index: CodeIndex) -> dict[str, Any]:
         "total_symbols": index.total_symbols,
         "total_files": index.total_files,
     }
+    if index.call_graph:
+        d["call_graph"] = index.call_graph
+    if index.previous_symbol_hashes:
+        d["previous_symbol_hashes"] = index.previous_symbol_hashes
+    return d
 
 
 def _deserialize_index(data: dict[str, Any]) -> CodeIndex:
@@ -172,6 +206,8 @@ def _deserialize_index(data: dict[str, Any]) -> CodeIndex:
         language_stats=dict(data.get("language_stats", {})),
         total_symbols=data.get("total_symbols", 0),
         total_files=data.get("total_files", 0),
+        call_graph=data.get("call_graph", {}),
+        previous_symbol_hashes=data.get("previous_symbol_hashes", {}),
     )
 
 

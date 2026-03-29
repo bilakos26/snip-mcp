@@ -9,6 +9,7 @@ from __future__ import annotations
 from snip_mcp.parser.languages import LanguageSpec
 from snip_mcp.parser.sql_preprocessor import is_dbt_model, strip_jinja
 from snip_mcp.parser.symbols import (
+    Parameter,
     Symbol,
     SymbolKind,
     compute_content_hash,
@@ -192,6 +193,200 @@ def _determine_kind(
     return kind
 
 
+def _extract_type_info(
+    node,
+    source_bytes: bytes,
+    language_id: str,
+) -> tuple[tuple[Parameter, ...], str]:
+    """Extract parameter types and return type from a function/method node.
+
+    Returns (parameters, return_type).
+    """
+    parameters: list[Parameter] = []
+    return_type = ""
+
+    if language_id == "python":
+        # Find parameters child node
+        for child in node.children:
+            if child.type == "parameters":
+                for param in child.children:
+                    if param.type in (
+                        "identifier",
+                        "typed_parameter",
+                        "default_parameter",
+                        "typed_default_parameter",
+                    ):
+                        name = ""
+                        type_ann = ""
+                        default = ""
+                        if param.type == "identifier":
+                            name = _node_text(param, source_bytes)
+                        elif param.type == "typed_parameter":
+                            for pc in param.children:
+                                if pc.type == "identifier":
+                                    name = _node_text(pc, source_bytes)
+                                elif pc.type == "type":
+                                    type_ann = _node_text(pc, source_bytes)
+                        elif param.type == "default_parameter":
+                            for pc in param.children:
+                                if pc.type == "identifier":
+                                    name = _node_text(pc, source_bytes)
+                                elif pc.type not in ("identifier", "="):
+                                    default = _node_text(pc, source_bytes)
+                        elif param.type == "typed_default_parameter":
+                            for pc in param.children:
+                                if pc.type == "identifier":
+                                    name = _node_text(pc, source_bytes)
+                                elif pc.type == "type":
+                                    type_ann = _node_text(pc, source_bytes)
+                                elif pc.type not in ("identifier", "type", "=", ":"):
+                                    default = _node_text(pc, source_bytes)
+                        if name and name != "self" and name != "cls":
+                            parameters.append(
+                                Parameter(
+                                    name=name, type_annotation=type_ann, default_value=default
+                                )
+                            )
+            # Return type annotation: -> type
+            if child.type == "type":
+                # Check previous sibling is ->
+                idx = node.children.index(child)
+                if idx > 0:
+                    prev = _node_text(node.children[idx - 1], source_bytes).strip()
+                    if prev == "->":
+                        return_type = _node_text(child, source_bytes)
+
+    elif language_id in ("typescript", "tsx", "javascript"):
+        for child in node.children:
+            if child.type == "formal_parameters":
+                for param in child.children:
+                    if param.type in ("required_parameter", "optional_parameter"):
+                        name = ""
+                        type_ann = ""
+                        default = ""
+                        for pc in param.children:
+                            if pc.type in ("identifier", "shorthand_property_identifier_pattern"):
+                                name = _node_text(pc, source_bytes)
+                            elif pc.type == "type_annotation":
+                                # Skip the ": " prefix
+                                type_ann = _node_text(pc, source_bytes).lstrip(": ")
+                        if name:
+                            parameters.append(
+                                Parameter(
+                                    name=name, type_annotation=type_ann, default_value=default
+                                )
+                            )
+            elif child.type == "type_annotation":
+                return_type = _node_text(child, source_bytes).lstrip(": ")
+
+    elif language_id == "go":
+        for child in node.children:
+            if child.type == "parameter_list":
+                for param in child.children:
+                    if param.type == "parameter_declaration":
+                        names: list[str] = []
+                        type_ann = ""
+                        for pc in param.children:
+                            if pc.type == "identifier":
+                                names.append(_node_text(pc, source_bytes))
+                            elif pc.type in (
+                                "type_identifier",
+                                "pointer_type",
+                                "slice_type",
+                                "map_type",
+                                "qualified_type",
+                                "array_type",
+                                "interface_type",
+                                "struct_type",
+                                "function_type",
+                                "channel_type",
+                            ):
+                                type_ann = _node_text(pc, source_bytes)
+                        for n in names:
+                            parameters.append(Parameter(name=n, type_annotation=type_ann))
+            elif child.type in (
+                "type_identifier",
+                "pointer_type",
+                "slice_type",
+                "map_type",
+                "qualified_type",
+                "array_type",
+            ):
+                # Return type (appears after parameter_list)
+                return_type = _node_text(child, source_bytes)
+            elif child.type == "result":
+                return_type = _node_text(child, source_bytes)
+
+    elif language_id == "rust":
+        for child in node.children:
+            if child.type == "parameters":
+                for param in child.children:
+                    if param.type == "parameter":
+                        name = ""
+                        type_ann = ""
+                        for pc in param.children:
+                            if pc.type in ("identifier", "self"):
+                                txt = _node_text(pc, source_bytes)
+                                if txt == "self" or txt == "&self" or txt == "&mut self":
+                                    continue
+                                name = txt
+                            elif pc.type not in (":", ","):
+                                if not name:
+                                    continue
+                                type_ann = _node_text(pc, source_bytes)
+                        if name:
+                            parameters.append(Parameter(name=name, type_annotation=type_ann))
+        # Return type: -> Type
+        full_text = _node_text(node, source_bytes)
+        arrow_idx = full_text.find("->")
+        if arrow_idx != -1:
+            rest = full_text[arrow_idx + 2 :].strip()
+            brace = rest.find("{")
+            if brace != -1:
+                return_type = rest[:brace].strip()
+            elif rest:
+                return_type = rest.split()[0] if rest.split() else ""
+
+    elif language_id in ("java", "c_sharp"):
+        for child in node.children:
+            if child.type == "formal_parameters":
+                for param in child.children:
+                    if param.type == "formal_parameter":
+                        name = ""
+                        type_ann = ""
+                        for pc in param.children:
+                            if pc.type == "identifier":
+                                name = _node_text(pc, source_bytes)
+                            elif pc.type in (
+                                "type_identifier",
+                                "generic_type",
+                                "array_type",
+                                "integral_type",
+                                "floating_point_type",
+                                "boolean_type",
+                                "void_type",
+                                "scoped_type_identifier",
+                                "predefined_type",
+                            ):
+                                type_ann = _node_text(pc, source_bytes)
+                        if name:
+                            parameters.append(Parameter(name=name, type_annotation=type_ann))
+            elif child.type in (
+                "type_identifier",
+                "generic_type",
+                "void_type",
+                "integral_type",
+                "floating_point_type",
+                "boolean_type",
+                "array_type",
+                "scoped_type_identifier",
+                "predefined_type",
+            ):
+                return_type = _node_text(child, source_bytes)
+
+    return tuple(parameters), return_type
+
+
 def _walk_and_extract(
     node,
     source_bytes: bytes,
@@ -254,6 +449,12 @@ def _walk_and_extract(
             decorators = _extract_decorators(node, source_bytes)
             content = _node_text(node, source_bytes)
 
+            # Extract type info for functions/methods
+            params = ()
+            ret_type = ""
+            if kind in (SymbolKind.FUNCTION, SymbolKind.METHOD):
+                params, ret_type = _extract_type_info(node, source_bytes, spec.language_id)
+
             sym_id = make_symbol_id(file_path, kind, name, node.start_point[0] + 1)
             symbols.append(
                 Symbol(
@@ -270,6 +471,8 @@ def _walk_and_extract(
                     decorators=decorators,
                     content_hash=compute_content_hash(content),
                     language=spec.language_id,
+                    return_type=ret_type,
+                    parameters=params,
                 )
             )
 

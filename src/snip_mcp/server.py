@@ -382,6 +382,71 @@ TOOLS: list[Tool] = [
             "properties": {},
         },
     ),
+    Tool(
+        name="get_call_graph",
+        description=(
+            "Get what a symbol calls — returns callees with optional depth "
+            "traversal through the call graph."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "symbol_id": {
+                    "type": "string",
+                    "description": "Symbol ID to get call graph for.",
+                },
+                "depth": {
+                    "type": "integer",
+                    "description": "How many levels deep to traverse.",
+                    "default": 1,
+                },
+            },
+            "required": ["repo_path", "symbol_id"],
+        },
+    ),
+    Tool(
+        name="get_callers",
+        description=("Find all symbols that call a given symbol — reverse call graph lookup."),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "symbol_id": {
+                    "type": "string",
+                    "description": "Symbol ID to find callers for.",
+                },
+            },
+            "required": ["repo_path", "symbol_id"],
+        },
+    ),
+    Tool(
+        name="get_change_impact",
+        description=(
+            "Identify changed symbols by comparing current files to the stored "
+            "index, then find their dependents via the call graph."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Optional relative path to limit analysis to one file.",
+                },
+            },
+            "required": ["repo_path"],
+        },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -506,6 +571,28 @@ def _dispatch(tool_name: str, arguments: dict) -> dict:
         from snip_mcp.storage.token_tracker import TokenTracker
 
         return TokenTracker().get_stats()
+
+    elif tool_name == "get_call_graph":
+        from snip_mcp.tools.get_call_graph import get_call_graph
+
+        return get_call_graph(
+            arguments["repo_path"],
+            arguments["symbol_id"],
+            depth=arguments.get("depth", 1),
+        )
+
+    elif tool_name == "get_callers":
+        from snip_mcp.tools.get_callers import get_callers
+
+        return get_callers(arguments["repo_path"], arguments["symbol_id"])
+
+    elif tool_name == "get_change_impact":
+        from snip_mcp.tools.get_change_impact import get_change_impact
+
+        return get_change_impact(
+            arguments["repo_path"],
+            file_path=arguments.get("file_path"),
+        )
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}

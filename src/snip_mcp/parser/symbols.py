@@ -111,6 +111,30 @@ def compute_content_hash(content: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Parameter (for type info extraction)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Parameter:
+    """A single parameter of a function or method.
+
+    Attributes
+    ----------
+    name:
+        Parameter name.
+    type_annotation:
+        Type annotation string (empty if absent).
+    default_value:
+        Default value string (empty if absent).
+    """
+
+    name: str
+    type_annotation: str = ""
+    default_value: str = ""
+
+
+# ---------------------------------------------------------------------------
 # Symbol
 # ---------------------------------------------------------------------------
 
@@ -175,6 +199,8 @@ class Symbol:
     language: str = ""
     decorators: Tuple[str, ...] = ()
     imports: Tuple[str, ...] = ()
+    return_type: str = ""
+    parameters: Tuple[Parameter, ...] = ()
 
 
 # ---------------------------------------------------------------------------

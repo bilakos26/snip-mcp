@@ -140,6 +140,12 @@ def index_folder(
         language_stats[lang_spec.language_id] = language_stats.get(lang_spec.language_id, 0) + 1
         files_parsed += 1
 
+    # Save previous symbol hashes for changelog (Phase 3)
+    previous_symbol_hashes: dict[str, str] = {}
+    if existing_index:
+        for sid, sym in existing_index.symbols.items():
+            previous_symbol_hashes[sid] = sym.content_hash
+
     # Build index
     index = CodeIndex(
         repo_path=repo_path_str,
@@ -151,7 +157,18 @@ def index_folder(
         language_stats=language_stats,
         total_symbols=total_symbols,
         total_files=len(files_map),
+        previous_symbol_hashes=previous_symbol_hashes,
     )
+
+    # Build call graph
+    from snip_mcp.parser.call_graph import build_call_graph
+
+    index.call_graph = build_call_graph(index)
+
+    # Resolve cross-file imports
+    from snip_mcp.parser.resolver import resolve_imports
+
+    resolve_imports(index)
 
     # Save
     store.save(index)
