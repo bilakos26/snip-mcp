@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import re
+
+from rapidfuzz import fuzz
+
 from snip_mcp.summarizer import summarize_symbol
 from snip_mcp.tools._utils import meta_envelope, resolve_repo
 
@@ -12,6 +16,15 @@ _WEIGHT_NAME_SUBSTRING = 10
 _WEIGHT_SIGNATURE = 8
 _WEIGHT_DOCSTRING = 5
 _WEIGHT_FILE_PATH = 3
+_FUZZY_THRESHOLD = 60
+
+# camelCase / snake_case / kebab-case normaliser
+_SPLIT_RE = re.compile(r"[_\-]|(?<=[a-z])(?=[A-Z])")
+
+
+def _normalize(name: str) -> str:
+    """Normalize a symbol name for fuzzy comparison."""
+    return " ".join(_SPLIT_RE.split(name)).lower()
 
 
 def search_symbols(
@@ -75,6 +88,12 @@ def search_symbols(
 
         if query_lower in sym.file_path.lower():
             score += _WEIGHT_FILE_PATH
+
+        # Fuzzy matching as fallback
+        if score == 0:
+            fuzzy_score = fuzz.ratio(_normalize(query), _normalize(sym.name))
+            if fuzzy_score >= _FUZZY_THRESHOLD:
+                score += fuzzy_score / 10  # scale to 0-10 range
 
         if score > 0:
             scored.append((score, sym))

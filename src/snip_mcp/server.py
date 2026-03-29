@@ -447,6 +447,49 @@ TOOLS: list[Tool] = [
             "required": ["repo_path"],
         },
     ),
+    Tool(
+        name="search_annotations",
+        description=(
+            "Find symbols by decorator/annotation pattern "
+            '(e.g. "router.get", "pytest.mark", "Override").'
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "pattern": {
+                    "type": "string",
+                    "description": "Decorator/annotation pattern to search for.",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum results to return.",
+                    "default": 50,
+                },
+            },
+            "required": ["repo_path", "pattern"],
+        },
+    ),
+    Tool(
+        name="get_changes",
+        description=(
+            "Show symbols added, modified, or removed since the last index. "
+            "Requires at least two index runs to have comparison data."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+            },
+            "required": ["repo_path"],
+        },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -593,6 +636,20 @@ def _dispatch(tool_name: str, arguments: dict) -> dict:
             arguments["repo_path"],
             file_path=arguments.get("file_path"),
         )
+
+    elif tool_name == "search_annotations":
+        from snip_mcp.tools.search_annotations import search_annotations
+
+        return search_annotations(
+            arguments["repo_path"],
+            arguments["pattern"],
+            max_results=arguments.get("max_results", 50),
+        )
+
+    elif tool_name == "get_changes":
+        from snip_mcp.tools.get_changes import get_changes
+
+        return get_changes(arguments["repo_path"])
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}
