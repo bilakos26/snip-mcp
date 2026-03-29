@@ -12,8 +12,8 @@ from snip_mcp.parser.languages import (
 
 
 class TestLanguageRegistry:
-    def test_has_11_languages(self) -> None:
-        assert len(LANGUAGE_SPECS) == 11
+    def test_has_23_languages(self) -> None:
+        assert len(LANGUAGE_SPECS) == 23
 
     @pytest.mark.parametrize(
         "lang_id",

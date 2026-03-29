@@ -9,7 +9,20 @@ dependencies = [
     "tree-sitter-language-pack>=0.6.0",
     "pathspec>=0.12.0",
     "pyyaml>=6.0",
+    "orjson>=3.9",
+    "rapidfuzz>=3.0",
 ]
+
+[project.optional-dependencies]
+tokens = ["tiktoken>=0.7"]
+docs = [
+    "openpyxl>=3.1",
+    "python-docx>=1.0",
+    "python-pptx>=1.0",
+    "pymupdf>=1.24",
+]
+watch = ["watchfiles>=0.21"]
+all = ["snip-mcp[tokens,docs,watch]"]
 
 [project.scripts]
 snip-mcp = "snip_mcp.server:main"

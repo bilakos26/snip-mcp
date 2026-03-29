@@ -13,11 +13,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+try:
+    import tiktoken
+
+    _ENC = tiktoken.encoding_for_model("gpt-4o")
+    _HAS_TIKTOKEN = True
+except ImportError:
+    _HAS_TIKTOKEN = False
+
 
 def estimate_tokens(text: str) -> int:
-    """Estimate the token count for *text* using a simple heuristic.
+    """Estimate the token count for *text*.
 
-    Uses the common approximation of ~4 characters per token.
+    Uses ``tiktoken`` for accurate counting when available (install the
+    ``[tokens]`` extra).  Falls back to the ``len(text) // 4`` heuristic
+    otherwise.
 
     Parameters
     ----------
@@ -29,6 +39,8 @@ def estimate_tokens(text: str) -> int:
     int
         Estimated token count (always >= 0).
     """
+    if _HAS_TIKTOKEN:
+        return len(_ENC.encode(text))
     return len(text) // 4
 
 

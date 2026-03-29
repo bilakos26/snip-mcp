@@ -37,6 +37,31 @@ _C_INCLUDE = re.compile(r'^\s*#\s*include\s+[<"]([^>"]+)[>"]', re.MULTILINE)
 _SQL_FROM = re.compile(r"\bFROM\s+(\w+(?:\.\w+)*)", re.IGNORECASE)
 _SQL_JOIN = re.compile(r"\bJOIN\s+(\w+(?:\.\w+)*)", re.IGNORECASE)
 
+# Ruby: require 'X', require_relative 'X'
+_RUBY_REQUIRE = re.compile(r"""^\s*require(?:_relative)?\s+['"]([^'"]+)['"]""", re.MULTILINE)
+
+# Kotlin: import X.Y.Z
+_KOTLIN_IMPORT = re.compile(r"^\s*import\s+([a-zA-Z_][\w.]*\w)", re.MULTILINE)
+
+# Swift: import X
+_SWIFT_IMPORT = re.compile(r"^\s*import\s+(\w+)", re.MULTILINE)
+
+# PHP: use X\Y\Z;, require_once 'X';
+_PHP_USE = re.compile(r"^\s*use\s+([a-zA-Z_\\][\w\\]*\w)\s*;", re.MULTILINE)
+_PHP_REQUIRE = re.compile(
+    r"""^\s*(?:require|require_once|include|include_once)\s+['"]([^'"]+)['"]""",
+    re.MULTILINE,
+)
+
+# Scala: import X.Y.Z
+_SCALA_IMPORT = re.compile(r"^\s*import\s+([a-zA-Z_][\w.]*\w)", re.MULTILINE)
+
+# Lua: require("X") or require 'X'
+_LUA_REQUIRE = re.compile(r"""require\s*[\(]?\s*['"]([^'"]+)['"]""", re.MULTILINE)
+
+# Bash: source X, . X
+_BASH_SOURCE = re.compile(r"""^\s*(?:source|\.)\s+['"]?([^\s'"]+)['"]?""", re.MULTILINE)
+
 
 def extract_imports(source: str, language_id: str) -> list[str]:
     """Extract import/include statements from source code.
@@ -108,6 +133,39 @@ def _extract_sql(source: str) -> list[str]:
     return sorted(tables)
 
 
+def _extract_ruby(source: str) -> list[str]:
+    return sorted({m.group(1) for m in _RUBY_REQUIRE.finditer(source)})
+
+
+def _extract_kotlin(source: str) -> list[str]:
+    return sorted({m.group(1) for m in _KOTLIN_IMPORT.finditer(source)})
+
+
+def _extract_swift(source: str) -> list[str]:
+    return sorted({m.group(1) for m in _SWIFT_IMPORT.finditer(source)})
+
+
+def _extract_php(source: str) -> list[str]:
+    imports: list[str] = []
+    for m in _PHP_USE.finditer(source):
+        imports.append(m.group(1))
+    for m in _PHP_REQUIRE.finditer(source):
+        imports.append(m.group(1))
+    return sorted(set(imports))
+
+
+def _extract_scala(source: str) -> list[str]:
+    return sorted({m.group(1) for m in _SCALA_IMPORT.finditer(source)})
+
+
+def _extract_lua(source: str) -> list[str]:
+    return sorted({m.group(1) for m in _LUA_REQUIRE.finditer(source)})
+
+
+def _extract_bash(source: str) -> list[str]:
+    return sorted({m.group(1) for m in _BASH_SOURCE.finditer(source)})
+
+
 _EXTRACTORS: dict[str, callable] = {
     "python": _extract_python,
     "javascript": _extract_javascript,
@@ -120,4 +178,11 @@ _EXTRACTORS: dict[str, callable] = {
     "c": _extract_c,
     "cpp": _extract_c,  # same #include syntax
     "sql": _extract_sql,
+    "ruby": _extract_ruby,
+    "kotlin": _extract_kotlin,
+    "swift": _extract_swift,
+    "php": _extract_php,
+    "scala": _extract_scala,
+    "lua": _extract_lua,
+    "bash": _extract_bash,
 }

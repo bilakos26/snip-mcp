@@ -203,6 +203,135 @@ _SQL = LanguageSpec(
     comment_prefix="--",
 )
 
+# ---------------------------------------------------------------------------
+# Tier 2 language specifications (12 new languages)
+# ---------------------------------------------------------------------------
+
+_RUBY = LanguageSpec(
+    name="Ruby",
+    language_id="ruby",
+    extensions=(".rb", ".rake", ".gemspec"),
+    symbol_queries={
+        "method": "method",
+        "class": "class",
+        "module": "module",
+    },
+    comment_prefix="#",
+)
+
+_KOTLIN = LanguageSpec(
+    name="Kotlin",
+    language_id="kotlin",
+    extensions=(".kt", ".kts"),
+    symbol_queries={
+        "function": "function_declaration",
+        "class": "class_declaration",
+        "interface": "interface_declaration",
+    },
+    comment_prefix="//",
+)
+
+_SWIFT = LanguageSpec(
+    name="Swift",
+    language_id="swift",
+    extensions=(".swift",),
+    symbol_queries={
+        "function": "function_declaration",
+        "class": "class_declaration",
+        "struct": "struct_declaration",
+        "enum": "enum_declaration",
+        "protocol": "protocol_declaration",
+    },
+    comment_prefix="//",
+)
+
+_PHP = LanguageSpec(
+    name="PHP",
+    language_id="php",
+    extensions=(".php",),
+    symbol_queries={
+        "function": "function_definition",
+        "class": "class_declaration",
+        "method": "method_declaration",
+        "interface": "interface_declaration",
+    },
+    comment_prefix="//",
+)
+
+_SCALA = LanguageSpec(
+    name="Scala",
+    language_id="scala",
+    extensions=(".scala", ".sc"),
+    symbol_queries={
+        "function": "function_definition",
+        "class": "class_definition",
+        "trait": "trait_definition",
+        "object": "object_definition",
+    },
+    comment_prefix="//",
+)
+
+_LUA = LanguageSpec(
+    name="Lua",
+    language_id="lua",
+    extensions=(".lua",),
+    symbol_queries={
+        "function": "function_declaration",
+        "variable": "variable_declaration",
+    },
+    comment_prefix="--",
+)
+
+_BASH = LanguageSpec(
+    name="Bash",
+    language_id="bash",
+    extensions=(".sh", ".bash"),
+    symbol_queries={
+        "function": "function_definition",
+    },
+    comment_prefix="#",
+)
+
+_HTML = LanguageSpec(
+    name="HTML",
+    language_id="html",
+    extensions=(".html", ".htm"),
+    symbol_queries={},
+    comment_prefix="<!--",
+)
+
+_CSS = LanguageSpec(
+    name="CSS",
+    language_id="css",
+    extensions=(".css",),
+    symbol_queries={},
+    comment_prefix="/*",
+)
+
+_YAML = LanguageSpec(
+    name="YAML",
+    language_id="yaml",
+    extensions=(".yml", ".yaml"),
+    symbol_queries={},
+    comment_prefix="#",
+)
+
+_JSON = LanguageSpec(
+    name="JSON",
+    language_id="json",
+    extensions=(".json",),
+    symbol_queries={},
+    comment_prefix="",
+)
+
+_TOML = LanguageSpec(
+    name="TOML",
+    language_id="toml",
+    extensions=(".toml",),
+    symbol_queries={},
+    comment_prefix="#",
+)
+
 
 # ---------------------------------------------------------------------------
 # Registry
@@ -222,6 +351,18 @@ LANGUAGE_SPECS: dict[str, LanguageSpec] = {
         _C,
         _CPP,
         _SQL,
+        _RUBY,
+        _KOTLIN,
+        _SWIFT,
+        _PHP,
+        _SCALA,
+        _LUA,
+        _BASH,
+        _HTML,
+        _CSS,
+        _YAML,
+        _JSON,
+        _TOML,
     )
 }
 """Registry of all supported languages, keyed by ``language_id``."""

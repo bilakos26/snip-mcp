@@ -9,14 +9,16 @@ filesystem-safe.
 
 from __future__ import annotations
 
+import gzip
 import hashlib
-import json
 import os
 import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+import orjson
 
 from snip_mcp.parser.symbols import FileSymbols, Symbol, SymbolKind
 
@@ -193,11 +195,16 @@ class IndexStore:
         ``~/.snip/indexes/``.
     """
 
-    def __init__(self, storage_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        storage_dir: Path | None = None,
+        compress: bool = False,
+    ) -> None:
         if storage_dir is None:
             storage_dir = Path.home() / ".snip" / "indexes"
         self._storage_dir = storage_dir
         self._storage_dir.mkdir(parents=True, exist_ok=True)
+        self._compress = compress
 
     # -- path helpers -------------------------------------------------------
 
@@ -205,12 +212,23 @@ class IndexStore:
         """Return the deterministic file path for *repo_path*'s index.
 
         The filename is the first 16 hex characters of the SHA-256 hash of
-        *repo_path* with a ``.json`` extension.
+        *repo_path*.  Extension is ``.json.gz`` when compression is enabled,
+        ``.json`` otherwise.
         """
         digest = hashlib.sha256(repo_path.encode("utf-8")).hexdigest()[:16]
-        return self._storage_dir / f"{digest}.json"
+        ext = ".json.gz" if self._compress else ".json"
+        return self._storage_dir / f"{digest}{ext}"
 
     # -- CRUD operations ----------------------------------------------------
+
+    @staticmethod
+    def _read_index_file(path: Path) -> dict[str, Any]:
+        """Read an index file, auto-detecting gzip via magic bytes."""
+        raw = path.read_bytes()
+        # Gzip magic bytes: 1f 8b
+        if raw[:2] == b"\x1f\x8b":
+            raw = gzip.decompress(raw)
+        return orjson.loads(raw)
 
     def save(self, index: CodeIndex) -> Path:
         """Persist *index* to disk atomically.
@@ -224,7 +242,9 @@ class IndexStore:
             The path the index was saved to.
         """
         target = self._index_path(index.repo_path)
-        payload = json.dumps(_serialize_index(index), indent=None)
+        payload = orjson.dumps(_serialize_index(index))
+        if self._compress:
+            payload = gzip.compress(payload)
 
         # Write to a temp file in the same directory, then atomic rename.
         fd, tmp_path = tempfile.mkstemp(
@@ -232,7 +252,7 @@ class IndexStore:
             suffix=".tmp",
         )
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            with os.fdopen(fd, "wb") as fh:
                 fh.write(payload)
             # On Windows, os.rename fails if target exists — use os.replace.
             os.replace(tmp_path, str(target))
@@ -249,12 +269,23 @@ class IndexStore:
     def load(self, repo_path: str) -> CodeIndex | None:
         """Load the index for *repo_path* from disk.
 
+        Auto-detects gzip vs plain JSON via magic bytes, so indexes saved
+        with or without compression are always readable.
+
         Returns ``None`` if no index file exists for the given path.
         """
+        # Try both extensions — the index may have been saved with a
+        # different compression setting than the current one.
         path = self._index_path(repo_path)
         if not path.exists():
-            return None
-        data = json.loads(path.read_text(encoding="utf-8"))
+            digest = hashlib.sha256(repo_path.encode("utf-8")).hexdigest()[:16]
+            alt_ext = ".json" if self._compress else ".json.gz"
+            alt_path = self._storage_dir / f"{digest}{alt_ext}"
+            if alt_path.exists():
+                path = alt_path
+            else:
+                return None
+        data = self._read_index_file(path)
         return _deserialize_index(data)
 
     def delete(self, repo_path: str) -> bool:
@@ -273,16 +304,21 @@ class IndexStore:
         """Load and return all persisted indexes.
 
         Returns a list of :class:`CodeIndex` instances.  Corrupt or
-        unreadable files are silently skipped.
+        unreadable files are silently skipped.  Reads both ``.json`` and
+        ``.json.gz`` files transparently.
         """
         indexes: list[CodeIndex] = []
-        for json_file in sorted(self._storage_dir.glob("*.json")):
-            try:
-                data = json.loads(json_file.read_text(encoding="utf-8"))
-                indexes.append(_deserialize_index(data))
-            except (json.JSONDecodeError, KeyError, TypeError):
-                # Skip corrupt / incompatible index files.
-                continue
+        seen: set[str] = set()
+        for pattern in ("*.json", "*.json.gz"):
+            for index_file in sorted(self._storage_dir.glob(pattern)):
+                if index_file.name in seen:
+                    continue
+                seen.add(index_file.name)
+                try:
+                    data = self._read_index_file(index_file)
+                    indexes.append(_deserialize_index(data))
+                except (orjson.JSONDecodeError, KeyError, TypeError, gzip.BadGzipFile):
+                    continue
         return indexes
 
     # -- symbol source retrieval --------------------------------------------
