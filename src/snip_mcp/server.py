@@ -490,6 +490,73 @@ TOOLS: list[Tool] = [
             "required": ["repo_path"],
         },
     ),
+    Tool(
+        name="get_document_outline",
+        description=(
+            "Get the section hierarchy/outline of a document (Markdown, Excel, Word, PDF, CSV)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Relative path to the document within the repo.",
+                },
+            },
+            "required": ["repo_path", "file_path"],
+        },
+    ),
+    Tool(
+        name="get_document_section",
+        description="Retrieve the content of a specific document section by section ID.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "section_id": {
+                    "type": "string",
+                    "description": "Section ID to retrieve.",
+                },
+            },
+            "required": ["repo_path", "section_id"],
+        },
+    ),
+    Tool(
+        name="search_documents",
+        description="Search document sections by title or content across all indexed documents.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "query": {
+                    "type": "string",
+                    "description": "Search query string.",
+                },
+                "format": {
+                    "type": "string",
+                    "description": (
+                        "Filter by format (markdown, excel, word, powerpoint, pdf, csv)."
+                    ),
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum results to return.",
+                    "default": 20,
+                },
+            },
+            "required": ["repo_path", "query"],
+        },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -650,6 +717,26 @@ def _dispatch(tool_name: str, arguments: dict) -> dict:
         from snip_mcp.tools.get_changes import get_changes
 
         return get_changes(arguments["repo_path"])
+
+    elif tool_name == "get_document_outline":
+        from snip_mcp.tools.get_document_outline import get_document_outline
+
+        return get_document_outline(arguments["repo_path"], arguments["file_path"])
+
+    elif tool_name == "get_document_section":
+        from snip_mcp.tools.get_document_section import get_document_section
+
+        return get_document_section(arguments["repo_path"], arguments["section_id"])
+
+    elif tool_name == "search_documents":
+        from snip_mcp.tools.search_documents import search_documents
+
+        return search_documents(
+            arguments["repo_path"],
+            arguments["query"],
+            format=arguments.get("format"),
+            max_results=arguments.get("max_results", 20),
+        )
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}

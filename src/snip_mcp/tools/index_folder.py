@@ -68,8 +68,10 @@ def index_folder(
         if not ok:
             continue
 
-        # Only index files we have a language spec for
-        if get_language_for_file(str(path)) is not None:
+        # Index files we have a language spec or document parser for
+        from snip_mcp.parser.documents.registry import get_parser as get_doc_parser
+
+        if get_language_for_file(str(path)) is not None or get_doc_parser(str(path)) is not None:
             all_files.append(path)
 
     # Parse files
@@ -85,6 +87,7 @@ def index_folder(
         rel = str(path.relative_to(root)).replace("\\", "/")
         lang_spec = get_language_for_file(str(path))
         if lang_spec is None:
+            # Will be handled in the document parsing pass
             continue
 
         # Read file content
@@ -140,6 +143,21 @@ def index_folder(
         language_stats[lang_spec.language_id] = language_stats.get(lang_spec.language_id, 0) + 1
         files_parsed += 1
 
+    # Parse documents (markdown, csv, excel, word, powerpoint, pdf)
+    from snip_mcp.parser.documents.registry import parse_document
+
+    documents_map: dict = {}
+    docs_parsed = 0
+    for path in all_files:
+        rel = str(path.relative_to(root)).replace("\\", "/")
+        # Skip files already handled as code
+        if rel in files_map:
+            continue
+        doc = parse_document(path, rel)
+        if doc is not None:
+            documents_map[rel] = doc
+            docs_parsed += 1
+
     # Save previous symbol hashes for changelog (Phase 3)
     previous_symbol_hashes: dict[str, str] = {}
     if existing_index:
@@ -158,6 +176,7 @@ def index_folder(
         total_symbols=total_symbols,
         total_files=len(files_map),
         previous_symbol_hashes=previous_symbol_hashes,
+        documents=documents_map,
     )
 
     # Build call graph
@@ -189,6 +208,7 @@ def index_folder(
             "files_parsed": files_parsed,
             "files_skipped_unchanged": files_skipped,
             "languages": language_stats,
+            "documents_parsed": docs_parsed,
             "elapsed_seconds": round(elapsed, 2),
         },
         repo_path=repo_path_str,

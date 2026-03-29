@@ -65,7 +65,7 @@ class TestSecretsDetection:
 
 
 class TestBinaryDetection:
-    @pytest.mark.parametrize("ext", [".exe", ".dll", ".png", ".zip", ".pdf"])
+    @pytest.mark.parametrize("ext", [".exe", ".dll", ".png", ".zip"])
     def test_binary_extensions(self, tmp_path: Path, ext: str) -> None:
         f = tmp_path / f"file{ext}"
         f.touch()

@@ -86,14 +86,10 @@ BINARY_EXTENSIONS: set[str] = {
     ".avi",
     ".mov",
     ".wav",
-    # Documents (binary formats)
-    ".pdf",
+    # Documents (legacy binary formats only — modern formats handled by doc parsers)
     ".doc",
-    ".docx",
     ".xls",
-    ".xlsx",
     ".ppt",
-    ".pptx",
     # Fonts
     ".woff",
     ".woff2",
@@ -108,6 +104,15 @@ BINARY_EXTENSIONS: set[str] = {
     ".pyo",
     ".whl",
     ".egg",
+}
+
+DOCUMENT_EXTENSIONS: set[str] = {
+    ".pdf",
+    ".docx",
+    ".xlsx",
+    ".pptx",
+    ".csv",
+    ".tsv",
 }
 
 # Number of initial lines to scan for secret content patterns.
@@ -184,11 +189,16 @@ def looks_like_secret(filepath: Path, scan_content: bool = True) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def is_document(filepath: Path) -> bool:
+    """Return True if *filepath* is a supported document format."""
+    return filepath.suffix.lower() in DOCUMENT_EXTENSIONS
+
+
 def is_binary(filepath: Path) -> bool:
     """Return True if *filepath* appears to be a binary file.
 
     Uses a two-pronged check:
-    1. Known binary extensions.
+    1. Known binary extensions (excludes document formats handled by parsers).
     2. Null-byte probe — read the first 8 KB and look for ``\\x00``.
     """
     if filepath.suffix.lower() in BINARY_EXTENSIONS:
@@ -308,6 +318,10 @@ def should_index(filepath: Path, root: Path) -> tuple[bool, str]:
 
     if size > MAX_FILE_SIZE:
         return False, f"file too large ({size} bytes, max {MAX_FILE_SIZE})"
+
+    # Documents are binary but handled by dedicated parsers — let them through
+    if is_document(filepath):
+        return True, "ok"
 
     if is_binary(filepath):
         return False, "binary file"

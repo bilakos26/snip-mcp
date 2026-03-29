@@ -20,6 +20,7 @@ from typing import Any
 
 import orjson
 
+from snip_mcp.parser.documents.base import DocumentFile, DocumentSection
 from snip_mcp.parser.symbols import FileSymbols, Parameter, Symbol, SymbolKind
 
 # ---------------------------------------------------------------------------
@@ -66,6 +67,7 @@ class CodeIndex:
     total_files: int = 0
     call_graph: dict[str, list[str]] = field(default_factory=dict)
     previous_symbol_hashes: dict[str, str] = field(default_factory=dict)
+    documents: dict[str, DocumentFile] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +172,66 @@ def _deserialize_file_symbols(data: dict[str, Any]) -> FileSymbols:
     )
 
 
+def _serialize_document_section(sec: DocumentSection) -> dict[str, Any]:
+    """Convert a :class:`DocumentSection` to a plain dict."""
+    return {
+        "id": sec.id,
+        "title": sec.title,
+        "section_type": sec.section_type,
+        "file_path": sec.file_path,
+        "line_start": sec.line_start,
+        "line_end": sec.line_end,
+        "byte_start": sec.byte_start,
+        "byte_end": sec.byte_end,
+        "content_preview": sec.content_preview,
+        "level": sec.level,
+        "parent_id": sec.parent_id,
+        "children": list(sec.children),
+        "metadata": dict(sec.metadata),
+    }
+
+
+def _deserialize_document_section(data: dict[str, Any]) -> DocumentSection:
+    """Reconstruct a :class:`DocumentSection` from a plain dict."""
+    return DocumentSection(
+        id=data["id"],
+        title=data["title"],
+        section_type=data["section_type"],
+        file_path=data["file_path"],
+        line_start=data["line_start"],
+        line_end=data["line_end"],
+        byte_start=data["byte_start"],
+        byte_end=data["byte_end"],
+        content_preview=data.get("content_preview", ""),
+        level=data.get("level", 0),
+        parent_id=data.get("parent_id", ""),
+        children=tuple(data.get("children", ())),
+        metadata=dict(data.get("metadata", {})),
+    )
+
+
+def _serialize_document_file(df: DocumentFile) -> dict[str, Any]:
+    """Convert a :class:`DocumentFile` to a plain dict."""
+    return {
+        "file_path": df.file_path,
+        "format": df.format,
+        "sections": [_serialize_document_section(s) for s in df.sections],
+        "content_hash": df.content_hash,
+        "file_size": df.file_size,
+    }
+
+
+def _deserialize_document_file(data: dict[str, Any]) -> DocumentFile:
+    """Reconstruct a :class:`DocumentFile` from a plain dict."""
+    return DocumentFile(
+        file_path=data["file_path"],
+        format=data["format"],
+        sections=[_deserialize_document_section(s) for s in data.get("sections", [])],
+        content_hash=data.get("content_hash", ""),
+        file_size=data.get("file_size", 0),
+    )
+
+
 def _serialize_index(index: CodeIndex) -> dict[str, Any]:
     """Convert a :class:`CodeIndex` to a JSON-serialisable dict."""
     d: dict[str, Any] = {
@@ -187,6 +249,8 @@ def _serialize_index(index: CodeIndex) -> dict[str, Any]:
         d["call_graph"] = index.call_graph
     if index.previous_symbol_hashes:
         d["previous_symbol_hashes"] = index.previous_symbol_hashes
+    if index.documents:
+        d["documents"] = {rp: _serialize_document_file(df) for rp, df in index.documents.items()}
     return d
 
 
@@ -208,6 +272,10 @@ def _deserialize_index(data: dict[str, Any]) -> CodeIndex:
         total_files=data.get("total_files", 0),
         call_graph=data.get("call_graph", {}),
         previous_symbol_hashes=data.get("previous_symbol_hashes", {}),
+        documents={
+            rp: _deserialize_document_file(df_data)
+            for rp, df_data in data.get("documents", {}).items()
+        },
     )
 
 
