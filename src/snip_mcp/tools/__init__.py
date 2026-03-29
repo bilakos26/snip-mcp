@@ -1,1 +1,1 @@
-"""Snip MCP tools — 15 tools for code indexing, retrieval, and stats."""
+"""Snip MCP tools — 28 tools for code indexing, retrieval, intelligence, and export."""

@@ -24,7 +24,7 @@ Think of it like a **book index** vs reading the whole book.
 
 ### Step 1 — Index (one-time per project)
 
-Snip scans your code folder and builds an index — like a table of contents. It uses [tree-sitter](https://tree-sitter.github.io/) (a code parser) to understand the structure: where every function, class, and method starts and ends, down to the exact byte position.
+Snip scans your code folder and builds an index — like a table of contents. It uses [tree-sitter](https://tree-sitter.github.io/) (a code parser) to understand the structure: where every function, class, and method starts and ends, down to the exact byte position. It also parses documents (Markdown, Excel, Word, PowerPoint, PDF, CSV) and builds a call graph across your codebase.
 
 ### Step 2 — Retrieve (every time the assistant needs code)
 
@@ -36,8 +36,17 @@ Every time Snip serves code, it records: "The full file was ~500 tokens, but I o
 
 ## Features
 
-- **Tree-sitter AST parsing** for 11 languages (Python, JS, TS, TSX, Go, Rust, Java, C#, C, C++, SQL)
-- **15 MCP tools** for indexing, searching, retrieving code symbols, and tracking savings
+- **Tree-sitter AST parsing** for 23 languages (Python, JS, TS, TSX, Go, Rust, Java, C#, C, C++, SQL, Ruby, Kotlin, Swift, PHP, Scala, Lua, Bash, HTML, CSS, YAML, JSON, TOML)
+- **28 MCP tools** for indexing, searching, retrieving, code intelligence, document parsing, and exporting
+- **Call graph analysis** — see what calls what, find callers, assess change impact
+- **Type information extraction** — parameters and return types for Python, TS, Go, Rust, Java, C#
+- **Document indexing** — parse Markdown, Excel, Word, PowerPoint, PDF, CSV into searchable sections
+- **Fuzzy search** — rapidfuzz-powered symbol search with camelCase/snake_case normalization
+- **Mermaid diagram export** — class hierarchy, call graph, and import diagrams
+- **Test coverage mapping** — find tests for any symbol via naming conventions, imports, and call graph
+- **Watch mode** — auto-reindex on file changes (optional `watchfiles` dependency)
+- **Fast serialization** — orjson for ~10x faster index read/write, optional gzip compression
+- **Accurate token counting** — optional tiktoken integration (falls back to chars/4 heuristic)
 - **Zero external network calls** — fully local, no telemetry
 - **Incremental indexing** — only re-parses changed files
 - **Byte-offset retrieval** — O(1) symbol source lookup
@@ -47,6 +56,15 @@ Every time Snip serves code, it records: "The full file was ~500 tokens, but I o
 
 ```bash
 uv sync
+```
+
+### Optional extras
+
+```bash
+uv sync --extra tokens   # tiktoken for accurate token counting
+uv sync --extra docs     # openpyxl, python-docx, python-pptx, pymupdf for document parsing
+uv sync --extra watch    # watchfiles for auto-reindex on file changes
+uv sync --extra all      # everything
 ```
 
 ## Usage
@@ -81,23 +99,63 @@ claude mcp add snip uv --directory /path/to/snip-mcp run snip-mcp
 
 ## Tools
 
-| Category | Tool | Purpose |
-|----------|------|---------|
-| **Setup** | `index_folder` | Scan a folder and build the code index |
-| **Browse** | `list_repos` | List all indexed folders |
-| | `get_file_tree` | Directory tree with language annotations |
-| | `get_repo_outline` | High-level repo overview (languages, stats) |
-| **Read** | `get_file_outline` | Symbol hierarchy for a file |
-| | `get_file_content` | File content with optional line range |
-| | `get_symbol` | Single symbol by ID (O(1) byte-offset lookup) |
-| | `get_symbols` | Batch retrieve multiple symbols |
-| **Search** | `search_symbols` | Weighted scoring search across symbols |
-| | `search_text` | Full-text search with context lines |
-| | `search_columns` | Column metadata search (e.g., dbt schema.yml) |
-| | `find_importers` | Reverse import graph — who imports this? |
-| | `find_references` | Find all usages of a symbol name |
-| **Manage** | `invalidate_cache` | Delete cached index, force re-index |
-| | `get_stats` | Session + cumulative token savings |
+### Setup & Browse (5 tools)
+
+| Tool | Purpose |
+|------|---------|
+| `index_folder` | Scan a folder and build the code index |
+| `list_repos` | List all indexed folders |
+| `get_file_tree` | Directory tree with language annotations |
+| `get_repo_outline` | High-level repo overview (languages, stats) |
+| `get_file_outline` | Symbol hierarchy for a file |
+
+### Read (3 tools)
+
+| Tool | Purpose |
+|------|---------|
+| `get_file_content` | File content with optional line range |
+| `get_symbol` | Single symbol by ID (O(1) byte-offset lookup) |
+| `get_symbols` | Batch retrieve multiple symbols |
+
+### Search (7 tools)
+
+| Tool | Purpose |
+|------|---------|
+| `search_symbols` | Weighted + fuzzy search across symbols |
+| `search_text` | Full-text search with context lines |
+| `search_columns` | Column metadata search (e.g., dbt schema.yml) |
+| `search_annotations` | Find symbols by decorator/annotation pattern |
+| `find_importers` | Reverse import graph — who imports this? |
+| `find_references` | Find all usages of a symbol name |
+| `get_changes` | Symbols added/modified/removed since last index |
+
+### Code Intelligence (4 tools)
+
+| Tool | Purpose |
+|------|---------|
+| `get_call_graph` | What does a symbol call? (with depth traversal) |
+| `get_callers` | Who calls this symbol? |
+| `get_change_impact` | Changed symbols + their dependents via call graph |
+| `get_test_coverage` | Find tests for a symbol (naming, imports, call graph) |
+
+### Documents (3 tools)
+
+| Tool | Purpose |
+|------|---------|
+| `get_document_outline` | Section hierarchy of a document |
+| `get_document_section` | Retrieve specific section content |
+| `search_documents` | Search document sections by title/content |
+
+### Export & Manage (6 tools)
+
+| Tool | Purpose |
+|------|---------|
+| `export_diagram` | Mermaid diagrams (class hierarchy, call graph, imports) |
+| `export_docs` | Generate markdown documentation from index |
+| `resolve_cross_repo` | Resolve imports across indexed repos |
+| `watch_repo` | Start/stop auto-reindex on file changes |
+| `invalidate_cache` | Delete cached index, force re-index |
+| `get_stats` | Session + cumulative token savings |
 
 ## Status Line
 

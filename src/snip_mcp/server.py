@@ -1,4 +1,4 @@
-"""Snip MCP server — stdio transport, 15 tool schemas, call dispatch."""
+"""Snip MCP server — stdio transport, 28 tool schemas, call dispatch."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ TOOLS: list[Tool] = [
         name="index_folder",
         description=(
             "Index a local folder using tree-sitter AST parsing. Extracts symbols "
-            "(functions, classes, methods, etc.) from source files in 11 languages. "
+            "(functions, classes, methods, etc.) from source files in 23 languages. "
             "Supports incremental indexing — only re-parses changed files."
         ),
         inputSchema={

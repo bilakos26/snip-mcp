@@ -48,7 +48,7 @@ class LanguageSpec:
 
 
 # ---------------------------------------------------------------------------
-# Tier 1 language specifications (11 languages)
+# Tier 1 language specifications
 # ---------------------------------------------------------------------------
 
 _PYTHON = LanguageSpec(
