@@ -557,6 +557,114 @@ TOOLS: list[Tool] = [
             "required": ["repo_path", "query"],
         },
     ),
+    Tool(
+        name="watch_repo",
+        description=(
+            "Start or stop watching a repo for file changes. "
+            "Auto-reindexes on changes (requires watchfiles)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "action": {
+                    "type": "string",
+                    "enum": ["start", "stop"],
+                    "description": "Start or stop watching.",
+                    "default": "start",
+                },
+            },
+            "required": ["repo_path"],
+        },
+    ),
+    Tool(
+        name="export_diagram",
+        description=("Generate a Mermaid diagram: class_hierarchy, call_graph, or imports."),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["class_hierarchy", "call_graph", "imports"],
+                    "description": "Type of diagram to generate.",
+                },
+                "file_pattern": {
+                    "type": "string",
+                    "description": "Optional file path filter.",
+                },
+            },
+            "required": ["repo_path", "type"],
+        },
+    ),
+    Tool(
+        name="export_docs",
+        description=("Generate markdown documentation from the code index."),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "file_pattern": {
+                    "type": "string",
+                    "description": "Optional file path filter.",
+                },
+                "format": {
+                    "type": "string",
+                    "description": "Output format.",
+                    "default": "markdown",
+                },
+            },
+            "required": ["repo_path"],
+        },
+    ),
+    Tool(
+        name="resolve_cross_repo",
+        description=("Resolve an import to a symbol in another indexed repo."),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the source repo.",
+                },
+                "import_string": {
+                    "type": "string",
+                    "description": "Import string to resolve.",
+                },
+            },
+            "required": ["repo_path", "import_string"],
+        },
+    ),
+    Tool(
+        name="get_test_coverage",
+        description=(
+            "Find test files and functions for a symbol via naming "
+            "conventions, imports, and call graph analysis."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "symbol_id": {
+                    "type": "string",
+                    "description": "Symbol ID to find tests for.",
+                },
+            },
+            "required": ["repo_path", "symbol_id"],
+        },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -737,6 +845,52 @@ def _dispatch(tool_name: str, arguments: dict) -> dict:
             format=arguments.get("format"),
             max_results=arguments.get("max_results", 20),
         )
+
+    elif tool_name == "watch_repo":
+        from snip_mcp.watcher import is_watching, start_watching, stop_watching
+
+        action = arguments.get("action", "start")
+        rp = arguments["repo_path"]
+        if action == "start":
+            ok = start_watching(rp)
+            if ok:
+                return {"status": "watching", "repo_path": rp}
+            if is_watching(rp):
+                return {"status": "already_watching", "repo_path": rp}
+            return {
+                "error": "watchfiles not installed. Install with: pip install snip-mcp[watch]"
+            }
+        else:
+            ok = stop_watching(rp)
+            return {"status": "stopped" if ok else "not_watching", "repo_path": rp}
+
+    elif tool_name == "export_diagram":
+        from snip_mcp.tools.export_diagram import export_diagram
+
+        return export_diagram(
+            arguments["repo_path"],
+            arguments["type"],
+            file_pattern=arguments.get("file_pattern"),
+        )
+
+    elif tool_name == "export_docs":
+        from snip_mcp.tools.export_docs import export_docs
+
+        return export_docs(
+            arguments["repo_path"],
+            file_pattern=arguments.get("file_pattern"),
+            format=arguments.get("format", "markdown"),
+        )
+
+    elif tool_name == "resolve_cross_repo":
+        from snip_mcp.tools.cross_repo import resolve_cross_repo
+
+        return resolve_cross_repo(arguments["repo_path"], arguments["import_string"])
+
+    elif tool_name == "get_test_coverage":
+        from snip_mcp.tools.get_test_coverage import get_test_coverage
+
+        return get_test_coverage(arguments["repo_path"], arguments["symbol_id"])
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}
