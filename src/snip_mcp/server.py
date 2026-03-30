@@ -1,4 +1,4 @@
-"""Snip MCP server — stdio transport, 28 tool schemas, call dispatch."""
+"""Snip MCP server — stdio transport, 29 tool schemas, call dispatch."""
 
 from __future__ import annotations
 
@@ -665,6 +665,33 @@ TOOLS: list[Tool] = [
             "required": ["repo_path", "symbol_id"],
         },
     ),
+    Tool(
+        name="get_dead_code",
+        description=(
+            "Detect potentially unused symbols (zero callers, not imported, "
+            "not entry points) and circular import chains."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Absolute path to the indexed folder.",
+                },
+                "include_tests": {
+                    "type": "boolean",
+                    "description": "Include test files in analysis.",
+                    "default": False,
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum dead symbols to return.",
+                    "default": 100,
+                },
+            },
+            "required": ["repo_path"],
+        },
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -891,6 +918,15 @@ def _dispatch(tool_name: str, arguments: dict) -> dict:
         from snip_mcp.tools.get_test_coverage import get_test_coverage
 
         return get_test_coverage(arguments["repo_path"], arguments["symbol_id"])
+
+    elif tool_name == "get_dead_code":
+        from snip_mcp.tools.get_dead_code import get_dead_code
+
+        return get_dead_code(
+            arguments["repo_path"],
+            include_tests=arguments.get("include_tests", False),
+            max_results=arguments.get("max_results", 100),
+        )
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}

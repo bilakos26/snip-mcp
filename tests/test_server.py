@@ -6,8 +6,8 @@ from snip_mcp.server import TOOLS, _dispatch
 
 
 class TestToolDefinitions:
-    def test_has_28_tools(self) -> None:
-        assert len(TOOLS) == 28
+    def test_has_29_tools(self) -> None:
+        assert len(TOOLS) == 29
 
     def test_tool_names(self) -> None:
         expected = {
@@ -39,6 +39,7 @@ class TestToolDefinitions:
             "export_docs",
             "resolve_cross_repo",
             "get_test_coverage",
+            "get_dead_code",
         }
         actual = {t.name for t in TOOLS}
         assert actual == expected

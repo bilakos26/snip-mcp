@@ -37,7 +37,8 @@ Every time Snip serves code, it records: "The full file was ~500 tokens, but I o
 ## Features
 
 - **Tree-sitter AST parsing** for 23 languages (Python, JS, TS, TSX, Go, Rust, Java, C#, C, C++, SQL, Ruby, Kotlin, Swift, PHP, Scala, Lua, Bash, HTML, CSS, YAML, JSON, TOML)
-- **28 MCP tools** for indexing, searching, retrieving, code intelligence, document parsing, and exporting
+- **29 MCP tools** for indexing, searching, retrieving, code intelligence, document parsing, and exporting
+- **Dead code & circular import detection** — find unused symbols and import cycles across the codebase
 - **Call graph analysis** — see what calls what, find callers, assess change impact
 - **Type information extraction** — parameters and return types for Python, TS, Go, Rust, Java, C#
 - **Document indexing** — parse Markdown, Excel, Word, PowerPoint, PDF, CSV into searchable sections
@@ -137,6 +138,7 @@ claude mcp add snip uv --directory /path/to/snip-mcp run snip-mcp
 | `get_callers` | Who calls this symbol? |
 | `get_change_impact` | Changed symbols + their dependents via call graph |
 | `get_test_coverage` | Find tests for a symbol (naming, imports, call graph) |
+| `get_dead_code` | Detect unused symbols and circular import chains |
 
 ### Documents (3 tools)
 
@@ -156,6 +158,40 @@ claude mcp add snip uv --directory /path/to/snip-mcp run snip-mcp
 | `watch_repo` | Start/stop auto-reindex on file changes |
 | `invalidate_cache` | Delete cached index, force re-index |
 | `get_stats` | Session + cumulative token savings |
+
+## Auto-Index on Session Start
+
+Add a Claude Code hook to automatically index your project when a conversation starts. Add this to your project's `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv --directory /path/to/snip-mcp run snip-mcp-index $PWD"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Or simply tell Claude to run `index_folder` at the start of your conversation — it only re-parses changed files so subsequent runs are fast.
+
+## Teaching Claude to Use Snip
+
+Copy `docs/CLAUDE.md.example` into your project as `CLAUDE.md` to teach Claude when to use Snip tools:
+
+```bash
+cp /path/to/snip-mcp/docs/CLAUDE.md.example ./CLAUDE.md
+```
+
+This makes Claude prefer `get_symbol` over reading full files, use `get_change_impact` before refactors, and leverage the call graph for navigation.
 
 ## Status Line
 

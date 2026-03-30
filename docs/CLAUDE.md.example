@@ -1,0 +1,28 @@
+# Snip Instructions
+
+This project uses Snip MCP for code intelligence. Follow these guidelines:
+
+## Code Retrieval
+- Prefer `get_symbol` over reading entire files when you need a specific function or class
+- Use `get_symbols` for batch retrieval instead of multiple `get_symbol` calls
+- Use `get_file_outline` to understand a file's structure before diving into specific symbols
+
+## Before Making Changes
+- Run `get_change_impact` before modifying shared functions — it shows what depends on them
+- Use `get_call_graph` and `get_callers` to understand a symbol's role before refactoring
+- Check `get_test_coverage` to see if tests exist for the code you're changing
+
+## Search
+- Use `search_symbols` for finding functions/classes by name (supports fuzzy matching)
+- Use `search_text` for string literals, comments, or patterns
+- Use `search_annotations` to find decorated functions (e.g. routes, tests, hooks)
+- Use `search_documents` to search across Markdown, Excel, Word, PDF, CSV files
+
+## Code Intelligence
+- Use `get_call_graph` with depth > 1 to trace execution paths
+- Use `export_diagram` to visualize class hierarchies or import graphs when explaining architecture
+- Use `get_changes` to see what changed since the last index
+
+## Indexing
+- The repo should already be indexed. If you get "no index found" errors, run `index_folder` first
+- After major refactors, re-index with `index_folder` to update the call graph
