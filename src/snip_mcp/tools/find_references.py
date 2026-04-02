@@ -39,6 +39,7 @@ def find_references(
     root = Path(index.repo_path)
     references: list[dict] = []
 
+    # Search code files
     for rel_path, file_syms in sorted(index.files.items()):
         if len(references) >= max_results:
             break
@@ -68,8 +69,46 @@ def find_references(
                 {
                     "file_path": rel_path,
                     "language": file_syms.language,
-                    "matches": file_refs[:10],  # Cap per-file matches
+                    "matches": file_refs[:10],
                     "total_in_file": len(file_refs),
+                }
+            )
+
+    # Search document files
+    for rel_path, doc_file in sorted(index.documents.items()):
+        if rel_path in index.files:
+            continue  # already searched as code
+
+        if len(references) >= max_results:
+            break
+
+        if file_pattern and file_pattern.lower() not in rel_path.lower():
+            continue
+
+        full_path = root / rel_path
+        content = safe_read(full_path)
+        if content is None:
+            continue
+
+        lines = content.split("\n")
+        file_refs_doc: list[dict] = []
+
+        for i, line in enumerate(lines):
+            if pattern.search(line):
+                file_refs_doc.append(
+                    {
+                        "line": i + 1,
+                        "text": line.strip(),
+                    }
+                )
+
+        if file_refs_doc:
+            references.append(
+                {
+                    "file_path": rel_path,
+                    "language": doc_file.format,
+                    "matches": file_refs_doc[:10],
+                    "total_in_file": len(file_refs_doc),
                 }
             )
 

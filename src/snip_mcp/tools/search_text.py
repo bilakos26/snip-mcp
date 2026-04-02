@@ -50,6 +50,7 @@ def search_text(
     results = []
     root = Path(index.repo_path)
 
+    # Search code files
     for rel_path, file_syms in sorted(index.files.items()):
         if file_pattern and file_pattern.lower() not in rel_path.lower():
             continue
@@ -92,6 +93,54 @@ def search_text(
                         "match": line.strip(),
                         "context": "\n".join(context),
                         "language": file_syms.language,
+                    }
+                )
+
+    # Search document files (markdown, docx, xlsx, pptx, pdf, csv)
+    for rel_path, doc_file in sorted(index.documents.items()):
+        if rel_path in index.files:
+            continue  # already searched as code
+
+        if file_pattern and file_pattern.lower() not in rel_path.lower():
+            continue
+
+        if len(results) >= max_results:
+            break
+
+        full_path = root / rel_path
+        content = safe_read(full_path)
+        if content is None:
+            continue
+
+        lines = content.split("\n")
+
+        for i, line in enumerate(lines):
+            if len(results) >= max_results:
+                break
+
+            matched = False
+            if pattern is not None:
+                matched = bool(pattern.search(line))
+            elif case_sensitive:
+                matched = query_match in line
+            else:
+                matched = query_match in line.lower()
+
+            if matched:
+                ctx_start = max(0, i - context_lines)
+                ctx_end = min(len(lines), i + context_lines + 1)
+                context = []
+                for j in range(ctx_start, ctx_end):
+                    prefix = ">" if j == i else " "
+                    context.append(f"{prefix} {j + 1}: {lines[j]}")
+
+                results.append(
+                    {
+                        "file_path": rel_path,
+                        "line": i + 1,
+                        "match": line.strip(),
+                        "context": "\n".join(context),
+                        "language": doc_file.format,
                     }
                 )
 
