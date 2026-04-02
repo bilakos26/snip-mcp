@@ -258,19 +258,21 @@ def safe_read(filepath: Path, max_bytes: int = MAX_FILE_SIZE) -> Optional[str]:
 
 
 def load_ignore_patterns(root: Path) -> pathspec.PathSpec:
-    """Load ``.gitignore`` from *root* (if present) and return a ``PathSpec``.
+    """Load ``.gitignore`` and ``.snipignore`` from *root* and return a merged ``PathSpec``.
 
-    If the file does not exist or cannot be read, an empty spec (matching
-    nothing) is returned.
+    If neither file exists or cannot be read, an empty spec (matching
+    nothing) is returned.  ``.snipignore`` patterns are appended after
+    ``.gitignore`` so they can add exclusions without modifying ``.gitignore``.
     """
-    gitignore = root / ".gitignore"
     lines: list[str] = []
-    if gitignore.is_file():
-        try:
-            text = gitignore.read_text(encoding="utf-8", errors="ignore")
-            lines = text.splitlines()
-        except OSError:
-            pass
+    for name in (".gitignore", ".snipignore"):
+        ignore_file = root / name
+        if ignore_file.is_file():
+            try:
+                text = ignore_file.read_text(encoding="utf-8", errors="ignore")
+                lines.extend(text.splitlines())
+            except OSError:
+                pass
 
     return pathspec.PathSpec.from_lines("gitignore", lines)
 

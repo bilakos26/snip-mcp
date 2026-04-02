@@ -34,39 +34,78 @@ class WordParser(DocumentParser):
         sections: list[DocumentSection] = []
         heading_stack: list[tuple[int, str]] = []
 
+        # Collect paragraphs with metadata
+        parsed_paras: list[tuple[int, int, str, str]] = []  # (line, level, text, sec_id)
         line = 0
         for para in doc.paragraphs:
             line += 1
             style_name = para.style.name if para.style else ""
             text = para.text.strip()
-
             if not text:
                 continue
-
             level = _HEADING_STYLES.get(style_name, 0)
-            if level > 0:
-                sec_id = f"{rel_path}::heading::{text}::{line}"
+            parsed_paras.append((line, level, text, ""))
+
+        # Find heading indices
+        heading_indices = [i for i, (_, lvl, _, _) in enumerate(parsed_paras) if lvl > 0]
+
+        if heading_indices:
+            # Build sections with body text under each heading
+            for hi, idx in enumerate(heading_indices):
+                h_line, h_level, h_text, _ = parsed_paras[idx]
+                sec_id = f"{rel_path}::heading::{h_text}::{h_line}"
 
                 parent_id = ""
-                while heading_stack and heading_stack[-1][0] >= level:
+                while heading_stack and heading_stack[-1][0] >= h_level:
                     heading_stack.pop()
                 if heading_stack:
                     parent_id = heading_stack[-1][1]
-                heading_stack.append((level, sec_id))
+                heading_stack.append((h_level, sec_id))
 
+                # Collect body text until next heading of same or higher level
+                body_parts = [h_text]
+                end_line = h_line
+                next_idx = heading_indices[hi + 1] if hi + 1 < len(heading_indices) else len(parsed_paras)
+                for bi in range(idx + 1, next_idx):
+                    b_line, b_level, b_text, _ = parsed_paras[bi]
+                    if b_level > 0:
+                        break
+                    body_parts.append(b_text)
+                    end_line = b_line
+
+                content = "\n".join(body_parts)
                 sections.append(
                     DocumentSection(
                         id=sec_id,
-                        title=text,
+                        title=h_text,
                         section_type="heading",
                         file_path=rel_path,
-                        line_start=line,
-                        line_end=line,
+                        line_start=h_line,
+                        line_end=end_line,
                         byte_start=0,
                         byte_end=len(file_bytes),
-                        content_preview=text[:200],
-                        level=level,
+                        content_preview=content[:500],
+                        level=h_level,
                         parent_id=parent_id,
+                    )
+                )
+        else:
+            # Fallback: no headings — collect all body text into a single section
+            body_lines = [text for _, _, text, _ in parsed_paras]
+            if body_lines:
+                full_body = "\n".join(body_lines)
+                sec_id = f"{rel_path}::body::Document Body::1"
+                sections.append(
+                    DocumentSection(
+                        id=sec_id,
+                        title="Document Body",
+                        section_type="body",
+                        file_path=rel_path,
+                        line_start=1,
+                        line_end=len(body_lines),
+                        byte_start=0,
+                        byte_end=len(file_bytes),
+                        content_preview=full_body[:500],
                     )
                 )
 
