@@ -948,10 +948,12 @@ async def handle_list_tools() -> list[Tool]:
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict | None) -> list[TextContent]:
     """Dispatch a tool call and return the result as JSON text."""
+    import asyncio
+
     arguments = arguments or {}
 
     try:
-        result = _dispatch(name, arguments)
+        result = await asyncio.to_thread(_dispatch, name, arguments)
     except Exception as e:
         logger.exception("Tool %s failed", name)
         result = {"error": str(e)}

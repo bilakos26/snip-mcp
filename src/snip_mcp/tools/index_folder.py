@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,31 +49,44 @@ def index_folder(
     # Load gitignore patterns
     ignore_spec = load_ignore_patterns(root)
 
-    # Discover files
+    # Discover files using os.walk for early directory pruning
     start = time.monotonic()
     all_files: list[Path] = []
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
+
+    from snip_mcp.parser.documents.registry import get_parser as get_doc_parser
+
+    for dirpath, dirnames, filenames in os.walk(root):
         if len(all_files) >= max_files:
             break
 
-        rel = str(path.relative_to(root)).replace("\\", "/")
+        # Prune ignored directories in-place so os.walk won't descend into them
+        rel_dir = os.path.relpath(dirpath, root).replace("\\", "/")
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if not ignore_spec.match_file(
+                f"{rel_dir}/{d}/" if rel_dir != "." else f"{d}/"
+            )
+        )
 
-        # Check gitignore
-        if is_ignored(path, root, ignore_spec):
-            continue
+        for filename in filenames:
+            if len(all_files) >= max_files:
+                break
 
-        # Security checks
-        ok, _reason = should_index(path, root)
-        if not ok:
-            continue
+            path = Path(dirpath) / filename
+            rel = str(path.relative_to(root)).replace("\\", "/")
 
-        # Index files we have a language spec or document parser for
-        from snip_mcp.parser.documents.registry import get_parser as get_doc_parser
+            # Check gitignore (for files — dirs already pruned above)
+            if ignore_spec.match_file(rel):
+                continue
 
-        if get_language_for_file(str(path)) is not None or get_doc_parser(str(path)) is not None:
-            all_files.append(path)
+            # Security checks
+            ok, _reason = should_index(path, root)
+            if not ok:
+                continue
+
+            # Index files we have a language spec or document parser for
+            if get_language_for_file(str(path)) is not None or get_doc_parser(str(path)) is not None:
+                all_files.append(path)
 
     # Parse files
     files_map: dict[str, FileSymbols] = {}

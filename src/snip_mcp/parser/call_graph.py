@@ -41,47 +41,57 @@ def build_call_graph(index: CodeIndex) -> dict[str, list[str]]:
     for sym in index.symbols.values():
         name_to_ids.setdefault(sym.name, []).append(sym.id)
 
-    # Pre-compile word boundary patterns for each name
-    name_patterns: dict[str, re.Pattern] = {}
-    for name in name_to_ids:
-        if len(name) < 2:
-            continue
-        try:
-            name_patterns[name] = re.compile(rf"\b{re.escape(name)}\b")
-        except re.error:
-            continue
+    # Filter to names worth matching (skip single-char names)
+    candidate_names = {name for name in name_to_ids if len(name) >= 2}
+
+    # Pre-compile a single regex to extract all word-boundary identifiers
+    _WORD_RE = re.compile(r"\b[A-Za-z_]\w*\b")
 
     call_graph: dict[str, list[str]] = {}
     repo_root = Path(index.repo_path)
 
+    # Cache file contents to avoid re-reading the same file for every symbol
+    _file_cache: dict[str, bytes] = {}
+
     for sym in index.symbols.values():
         if sym.kind not in callable_kinds:
-            continue
-
-        # Read source text via byte offsets
-        source_path = repo_root / sym.file_path
-        if not source_path.is_file():
             continue
 
         byte_length = sym.byte_end - sym.byte_start
         if byte_length <= 0:
             continue
 
-        try:
-            with source_path.open("rb") as fh:
-                fh.seek(sym.byte_start)
-                raw = fh.read(byte_length)
-            body = raw.decode("utf-8", errors="replace")
-        except OSError:
+        # Read file from cache or disk
+        file_key = sym.file_path
+        if file_key not in _file_cache:
+            source_path = repo_root / sym.file_path
+            if not source_path.is_file():
+                _file_cache[file_key] = b""
+                continue
+            try:
+                _file_cache[file_key] = source_path.read_bytes()
+            except OSError:
+                _file_cache[file_key] = b""
+                continue
+
+        raw = _file_cache[file_key]
+        if not raw:
             continue
 
+        try:
+            body = raw[sym.byte_start : sym.byte_end].decode("utf-8", errors="replace")
+        except (IndexError, OSError):
+            continue
+
+        # Extract all identifiers in the body and intersect with known names
+        body_words = set(_WORD_RE.findall(body))
+        matched_names = body_words & candidate_names
+
         callees: list[str] = []
-        for name, pattern in name_patterns.items():
-            if pattern.search(body):
-                for callee_id in name_to_ids[name]:
-                    # Exclude self-references
-                    if callee_id != sym.id:
-                        callees.append(callee_id)
+        for name in matched_names:
+            for callee_id in name_to_ids[name]:
+                if callee_id != sym.id:
+                    callees.append(callee_id)
 
         if callees:
             # Deduplicate while preserving order

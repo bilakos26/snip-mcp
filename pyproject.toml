@@ -26,6 +26,7 @@ all = ["snip-mcp[tokens,docs,watch]"]
 
 [project.scripts]
 snip-mcp = "snip_mcp.server:main"
+snip-mcp-index = "snip_mcp.cli_index:main"
 
 [build-system]
 requires = ["hatchling"]
