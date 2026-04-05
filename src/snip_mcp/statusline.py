@@ -57,15 +57,37 @@ def _progress_bar(pct: float, width: int = 18) -> str:
     return f"{_LEFT}{_FILLED * filled}{_EMPTY * empty}{_RIGHT}"
 
 
-def _load_session() -> dict:
-    """Load Snip session stats from disk."""
+def _load_session(session_id: str) -> dict:
+    """Load Snip session stats from disk, resetting if the conversation changed."""
     path = Path.home() / ".snip" / "session.json"
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
+
+    # Reset stats when a new conversation starts
+    stored_id = data.get("session_id")
+    if stored_id != session_id:
+        if stored_id is not None:
+            # Different session — reset counters
+            data = {
+                "session_id": session_id,
+                "session_started": None,
+                "retrievals": 0,
+                "full_tokens": 0,
+                "returned_tokens": 0,
+            }
+        else:
+            # First time seeing a session_id — stamp it without resetting
+            data["session_id"] = session_id
+        try:
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except OSError:
+            pass
+
+    return data
 
 
 def _format_claude_line(ctx: dict) -> str:
@@ -119,7 +141,8 @@ def main() -> None:
     except json.JSONDecodeError:
         return
 
-    session = _load_session()
+    session_id = ctx.get("session_id", "")
+    session = _load_session(session_id)
 
     print(_format_claude_line(ctx))
     if session and session.get("retrievals", 0) > 0:
