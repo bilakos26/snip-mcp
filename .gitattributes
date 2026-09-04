@@ -1,0 +1,8 @@
+# Normalize all text files to LF in the repository.
+# Without this, core.autocrlf=true makes every file Git touches show as
+# modified with no content change.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gz  binary
