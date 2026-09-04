@@ -2,6 +2,16 @@
 
 All notable changes to snip-mcp are documented here.
 
+## [0.4.0] — 2026-09-04
+
+### Changed
+- **Version is now sourced solely from `snip_mcp.__version__`.** `pyproject.toml`
+  previously said 0.3.3 while the package said 0.1.0; the two can no longer drift.
+
+### Added
+- **`.gitattributes`** normalizing text to LF, so `core.autocrlf` stops reporting ~50
+  unchanged files as modified.
+
 ## [0.3.3] — 2026-05-07
 
 ### Added

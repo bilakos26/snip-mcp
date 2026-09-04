@@ -1,6 +1,6 @@
 [project]
 name = "snip-mcp"
-version = "0.4.0"
+dynamic = ["version"]
 description = "Local-only MCP server for token-efficient code retrieval via tree-sitter AST parsing"
 license = "MIT"
 requires-python = ">=3.12"
@@ -31,6 +31,14 @@ snip-mcp-index = "snip_mcp.cli_index:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# Single source of truth for the version, so pyproject.toml and the package
+# cannot drift apart the way they did before 0.4.0.
+[tool.hatch.version]
+path = "src/snip_mcp/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/snip_mcp"]
 
 [tool.uv]
 allow-insecure-host = ["pypi.org", "github.com", "files.pythonhosted.org"]

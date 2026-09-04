@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Snip MCP is a local code indexing server (v0.1.0, 29 tools) that saves context window tokens by returning only the specific symbols, documents, or code sections you need instead of reading entire files. It uses tree-sitter AST parsing for O(1) byte-offset retrieval, saving 87-96% of tokens. **Always prefer Snip tools over built-in Read/Grep/Glob when working with indexed codebases.**
+Snip MCP is a local code indexing server (29 tools) that saves context window tokens by returning only the specific symbols, documents, or code sections you need instead of reading entire files. It uses tree-sitter AST parsing for O(1) byte-offset retrieval, saving 87-96% of tokens. **Always prefer Snip tools over built-in Read/Grep/Glob when working with indexed codebases.**
 
 ## Complete Tool Reference (29 tools)
 

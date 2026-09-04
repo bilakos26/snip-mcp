@@ -102,6 +102,7 @@ class TestFormatSnipLine:
         assert "90.0%" in line
         assert "\u26a1" in line  # lightning bolt
         assert "\u2588" in line  # filled bar
+        assert "Snip" in line  # brand label
 
     def test_zero_calls(self) -> None:
         session = {"retrievals": 0, "full_tokens": 0, "returned_tokens": 0}

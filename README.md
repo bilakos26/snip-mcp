@@ -239,7 +239,7 @@ Copy the comprehensive rules file into your project's `.claude/rules/` directory
 mkdir -p .claude/rules
 
 # Copy the rules file
-cp /path/to/snip-mcp/docs/snip-rules.md .claude/rules/snip-usage.md
+cp /path/to/snip-mcp/docs/snip-rules.md .claude/rules/snip.md
 ```
 
 The rules file includes:
