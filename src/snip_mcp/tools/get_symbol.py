@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from snip_mcp.security import safe_read
 from snip_mcp.storage.token_tracker import TokenTracker, estimate_tokens
 from snip_mcp.tools._utils import get_store, meta_envelope, resolve_repo
 
@@ -26,10 +29,11 @@ def get_symbol(repo_path: str, symbol_id: str) -> dict:
     if source is None:
         return meta_envelope({"error": f"Could not read source for: {symbol_id}"})
 
-    # Track tokens
+    # Track tokens — read full file for consistent tiktoken estimation on both sides
     tracker = TokenTracker()
     file_syms = index.files.get(sym.file_path)
-    full_tokens = file_syms.file_size // 4 if file_syms else len(source) * 2
+    full_file = safe_read(Path(index.repo_path) / sym.file_path) if file_syms else None
+    full_tokens = estimate_tokens(full_file) if full_file is not None else len(source) * 2
     returned_tokens = estimate_tokens(source)
     tracker.record_retrieval(full_tokens, returned_tokens)
 
@@ -66,6 +70,7 @@ def get_symbols(repo_path: str, symbol_ids: list[str]) -> dict:
     tracker = TokenTracker()
     results = []
     total_saved = 0
+    file_content_cache: dict[str, str | None] = {}
 
     for sid in symbol_ids:
         sym = index.symbols.get(sid)
@@ -79,7 +84,10 @@ def get_symbols(repo_path: str, symbol_ids: list[str]) -> dict:
             continue
 
         file_syms = index.files.get(sym.file_path)
-        full_tokens = file_syms.file_size // 4 if file_syms else len(source) * 2
+        if file_syms and sym.file_path not in file_content_cache:
+            file_content_cache[sym.file_path] = safe_read(Path(index.repo_path) / sym.file_path)
+        full_file = file_content_cache.get(sym.file_path)
+        full_tokens = estimate_tokens(full_file) if full_file is not None else len(source) * 2
         returned_tokens = estimate_tokens(source)
         tracker.record_retrieval(full_tokens, returned_tokens)
         total_saved += max(0, full_tokens - returned_tokens)

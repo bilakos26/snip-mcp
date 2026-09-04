@@ -95,7 +95,11 @@ Add to your project's `.mcp.json`:
 Or via CLI:
 
 ```bash
+# Current project only:
 claude mcp add snip uv --directory /path/to/snip-mcp run snip-mcp
+
+# Global — available in all projects:
+claude mcp add --global snip uv --directory /path/to/snip-mcp run snip-mcp
 ```
 
 ## Tools
@@ -130,7 +134,17 @@ claude mcp add snip uv --directory /path/to/snip-mcp run snip-mcp
 | `find_references` | Find all usages of a symbol name |
 | `get_changes` | Symbols added/modified/removed since last index |
 
-### Code Intelligence (4 tools)
+**Choosing the right search tool:**
+
+| Goal | Tool |
+|------|------|
+| Find a function/class by name (fuzzy ok) | `search_symbols` |
+| Find code containing a specific string or pattern | `search_text` |
+| Find every place a specific symbol is used | `find_references` |
+| Find which files import a specific module | `find_importers` |
+| Find symbols with a specific decorator (e.g. `@pytest.fixture`) | `search_annotations` |
+
+### Code Intelligence (5 tools)
 
 | Tool | Purpose |
 |------|---------|
@@ -139,6 +153,12 @@ claude mcp add snip uv --directory /path/to/snip-mcp run snip-mcp
 | `get_change_impact` | Changed symbols + their dependents via call graph |
 | `get_test_coverage` | Find tests for a symbol (naming, imports, call graph) |
 | `get_dead_code` | Detect unused symbols and circular import chains |
+
+**Notable details:**
+
+- **`get_call_graph`** — traverses outward from a symbol up to a configurable `depth` (default 1 = direct callees only). Increase depth to trace multi-level call chains.
+- **`get_change_impact`** — given a list of changed symbol IDs, walks the call graph to find all downstream dependents. Run this before refactoring to know what else might break.
+- **`get_dead_code`** — finds symbols that are never referenced anywhere in the codebase and detects circular import chains. Useful for cleanup before a major refactor.
 
 ### Documents (3 tools)
 
@@ -158,6 +178,29 @@ claude mcp add snip uv --directory /path/to/snip-mcp run snip-mcp
 | `watch_repo` | Start/stop auto-reindex on file changes |
 | `invalidate_cache` | Delete cached index, force re-index |
 | `get_stats` | Session + cumulative token savings |
+
+**`export_diagram` — diagram types**
+
+All three types output [Mermaid](https://mermaid.js.org/) markdown. Paste into any Mermaid renderer (e.g. [mermaid.live](https://mermaid.live), VS Code Mermaid Preview, or GitHub markdown blocks).
+
+| Type | Shows | Best for |
+|------|-------|----------|
+| `class_hierarchy` | Classes, their methods, and nested class relationships | Understanding the object model |
+| `call_graph` | Which functions/methods call which others | Understanding execution flow |
+| `imports` | Which files import which other files/modules | Understanding project architecture |
+
+Use `file_pattern` to scope the diagram to a specific subfolder — essential for large repos where the full graph would hit the 100-edge display limit:
+
+```
+# All tools files only:
+export_diagram(repo_path, type="call_graph", file_pattern="tools/")
+```
+
+**Other notable tools:**
+
+- **`export_docs`** — generates a markdown summary of every file in the index: symbol list, signatures, docstrings. Useful for producing onboarding docs or API references.
+- **`resolve_cross_repo`** — given an import path (e.g. `from shared_lib.utils import helper`), resolves which symbol in another indexed repo it refers to. Useful in multi-repo monorepos.
+- **`get_stats`** — returns session token savings (since last server start) and lifetime cumulative totals. Same data shown in the status bar.
 
 ## Auto-Index on Session Start
 
@@ -185,13 +228,37 @@ Or simply tell Claude to run `index_folder` at the start of your conversation �
 
 ## Teaching Claude to Use Snip
 
-Copy `docs/CLAUDE.md.example` into your project as `CLAUDE.md` to teach Claude when to use Snip tools:
+There are two ways to teach Claude when and how to use Snip tools. Pick the one that fits your needs.
+
+### Option A — Claude Rules file (recommended)
+
+Copy the comprehensive rules file into your project's `.claude/rules/` directory. This is a [Claude Code rules file](https://docs.anthropic.com/en/docs/claude-code/settings#rules) that activates automatically in every conversation — no manual prompting needed.
+
+```bash
+# Create the rules directory if it doesn't exist
+mkdir -p .claude/rules
+
+# Copy the rules file
+cp /path/to/snip-mcp/docs/snip-rules.md .claude/rules/snip-usage.md
+```
+
+The rules file includes:
+- Complete tool reference (all 29 tools with "use instead of" mappings)
+- Decision guide: when to use Snip vs built-in tools
+- Step-by-step workflows for code exploration, pre-refactor analysis, and document search
+- An indexed repositories table you can customize for your team
+
+Edit the `Indexed Repositories` table at the bottom of the file to list your team's repos and paths.
+
+### Option B — CLAUDE.md (lightweight)
+
+Copy the shorter `CLAUDE.md` into your project root for a lighter-touch guide:
 
 ```bash
 cp /path/to/snip-mcp/docs/CLAUDE.md.example ./CLAUDE.md
 ```
 
-This makes Claude prefer `get_symbol` over reading full files, use `get_change_impact` before refactors, and leverage the call graph for navigation.
+This covers the essentials — prefer `get_symbol` over reading full files, use `get_change_impact` before refactors, leverage the call graph for navigation — but without the full tool reference or workflows.
 
 ## Status Line
 
@@ -231,6 +298,23 @@ If you're behind a corporate proxy that intercepts HTTPS, `pyproject.toml` inclu
 native-tls = true                    # use OS certificate store
 allow-insecure-host = ["pypi.org"]   # trust corporate-intercepted hosts
 link-mode = "copy"                   # avoid hardlink errors on OneDrive
+```
+
+## Releases
+
+Versions follow `MAJOR.MINOR.PATCH` and are tracked in [`CHANGELOG.md`](CHANGELOG.md) and `pyproject.toml`.
+
+To cut a release after merging changes:
+
+```bash
+# 1. Update version in pyproject.toml and add entry to CHANGELOG.md
+# 2. Commit
+git add pyproject.toml CHANGELOG.md
+git commit -m "docs: add X.Y.Z changelog entry and bump version"
+
+# 3. Tag and push
+git tag vX.Y.Z
+git push && git push origin vX.Y.Z
 ```
 
 ## License

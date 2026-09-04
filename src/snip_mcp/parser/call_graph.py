@@ -6,10 +6,28 @@ references to known symbol names.
 
 from __future__ import annotations
 
+import keyword
 import re
 
 from snip_mcp.parser.symbols import SymbolKind
 from snip_mcp.storage.index_store import CodeIndex
+
+# Names excluded from call-graph candidate matching.
+# Includes Python keywords, built-ins, and ubiquitous local variable names
+# that appear in virtually every function body but never represent a
+# meaningful call target (e.g. `self`, `data`, `result`).
+_EXCLUDED_NAMES: frozenset[str] = (
+    frozenset(keyword.kwlist)
+    | frozenset(dir(__builtins__) if not isinstance(__builtins__, dict) else __builtins__)
+    | frozenset({
+        "self", "cls", "args", "kwargs", "data", "result", "error",
+        "value", "key", "name", "path", "index", "item", "items",
+        "text", "line", "lines", "content", "output", "response",
+        "config", "options", "params", "info", "msg", "obj", "ctx",
+        "row", "col", "val", "buf", "ret", "tmp", "src", "dst",
+        "e", "ex", "err", "ok", "yes", "no",
+    })
+)
 
 
 def build_call_graph(index: CodeIndex) -> dict[str, list[str]]:
@@ -41,8 +59,11 @@ def build_call_graph(index: CodeIndex) -> dict[str, list[str]]:
     for sym in index.symbols.values():
         name_to_ids.setdefault(sym.name, []).append(sym.id)
 
-    # Filter to names worth matching (skip single-char names)
-    candidate_names = {name for name in name_to_ids if len(name) >= 2}
+    # Filter to names worth matching: skip single-char names and excluded noise
+    candidate_names = {
+        name for name in name_to_ids
+        if len(name) >= 2 and name not in _EXCLUDED_NAMES
+    }
 
     # Pre-compile a single regex to extract all word-boundary identifiers
     _WORD_RE = re.compile(r"\b[A-Za-z_]\w*\b")

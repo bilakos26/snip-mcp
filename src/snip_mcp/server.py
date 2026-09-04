@@ -599,6 +599,10 @@ TOOLS: list[Tool] = [
                     "type": "string",
                     "description": "Optional file path filter.",
                 },
+                "output_path": {
+                    "type": "string",
+                    "description": "Optional file path to write the diagram to (e.g. 'diagram.mmd').",
+                },
             },
             "required": ["repo_path", "type"],
         },
@@ -621,6 +625,10 @@ TOOLS: list[Tool] = [
                     "type": "string",
                     "description": "Output format.",
                     "default": "markdown",
+                },
+                "output_path": {
+                    "type": "string",
+                    "description": "Optional file path to write the documentation to (e.g. 'docs.md').",
                 },
             },
             "required": ["repo_path"],
@@ -898,6 +906,7 @@ def _dispatch(tool_name: str, arguments: dict) -> dict:
             arguments["repo_path"],
             arguments["type"],
             file_pattern=arguments.get("file_pattern"),
+            output_path=arguments.get("output_path"),
         )
 
     elif tool_name == "export_docs":
@@ -907,6 +916,7 @@ def _dispatch(tool_name: str, arguments: dict) -> dict:
             arguments["repo_path"],
             file_pattern=arguments.get("file_pattern"),
             format=arguments.get("format", "markdown"),
+            output_path=arguments.get("output_path"),
         )
 
     elif tool_name == "resolve_cross_repo":

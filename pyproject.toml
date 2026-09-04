@@ -1,6 +1,6 @@
 [project]
 name = "snip-mcp"
-version = "0.1.0"
+version = "0.3.3"
 description = "Local-only MCP server for token-efficient code retrieval via tree-sitter AST parsing"
 license = "MIT"
 requires-python = ">=3.12"

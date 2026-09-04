@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from snip_mcp.tools._utils import meta_envelope, resolve_repo
 
 
@@ -10,6 +12,7 @@ def export_docs(
     *,
     file_pattern: str | None = None,
     format: str = "markdown",
+    output_path: str | None = None,
 ) -> dict:
     """Generate markdown documentation from the code index.
 
@@ -17,9 +20,10 @@ def export_docs(
         repo_path: Absolute path to the indexed folder.
         file_pattern: Optional file path filter.
         format: Output format (currently only "markdown").
+        output_path: If provided, write the documentation to this file path.
 
     Returns:
-        Envelope with generated documentation string.
+        Envelope with generated documentation string and optional saved path.
     """
     index, err = resolve_repo(repo_path)
     if index is None:
@@ -94,11 +98,19 @@ def export_docs(
 
     content = "\n".join(lines)
 
-    return meta_envelope(
-        {
-            "format": format,
-            "files_documented": len(files_to_show),
-            "content": content,
-        },
-        repo_path=index.repo_path,
-    )
+    saved_to: str | None = None
+    if output_path:
+        dest = Path(output_path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8")
+        saved_to = str(dest)
+
+    result: dict = {
+        "format": format,
+        "files_documented": len(files_to_show),
+        "content": content,
+    }
+    if saved_to:
+        result["saved_to"] = saved_to
+
+    return meta_envelope(result, repo_path=index.repo_path)

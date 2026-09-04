@@ -122,6 +122,7 @@ class TokenTracker:
             data = json.loads(self._session_path.read_text(encoding="utf-8"))
             return {
                 "session_started": data.get("session_started"),
+                "session_id": data.get("session_id"),
                 "retrievals": int(data.get("retrievals", 0)),
                 "full_tokens": int(data.get("full_tokens", 0)),
                 "returned_tokens": int(data.get("returned_tokens", 0)),
