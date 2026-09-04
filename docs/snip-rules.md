@@ -115,6 +115,20 @@ Snip MCP is a local code indexing server (29 tools) that saves context window to
 2. `get_document_outline` — see the section structure of a specific document
 3. `get_document_section` — read a specific section by ID
 
+### Before modifying code
+
+1. `mcp__snip__get_symbol` — read the function you'll change
+2. `mcp__snip__get_callers` — check what depends on it
+3. `mcp__snip__get_test_coverage` — find existing tests
+4. Make your edit with Edit tool
+5. `mcp__snip__get_change_impact` — verify impact after changes
+
+### Investigating changes
+
+1. `mcp__snip__get_changes` — see what symbols changed since last index
+2. `mcp__snip__get_change_impact` — identify affected dependents
+3. `mcp__snip__get_test_coverage` — find tests that need updating
+
 ## Indexed Repositories
 
 <!-- Add your team's repos here -->
@@ -136,6 +150,38 @@ Markdown, Excel (.xlsx), Word (.docx), PowerPoint (.pptx), PDF, CSV — requires
 
 - Use `get_stats` to check how many tokens Snip has saved in the current session
 - The status bar at the bottom of the terminal shows live savings if the statusline is configured
+
+## Storage & Configuration
+
+- **Index storage**: `~/.snip/indexes/` (one per project)
+- **Token stats**: `~/.snip/stats.json` (cumulative), `~/.snip/session.json` (per-session)
+- **Token counting**: Uses `tiktoken` for accurate counts if installed, falls back to `len(text) // 4`
+- **Exclusions**: `.gitignore`, then `.snipignore` (`.snipignore` takes precedence)
+
+### CLI Flags
+
+```bash
+uv run snip-mcp                       # Start MCP server
+uv run snip-mcp --stats               # Print session token savings
+uv run snip-mcp --setup-statusline    # Install statusline script
+uv run snip-mcp-index <path>          # Index a folder from the command line
+```
+
+### Optional Dependencies
+
+| Extra | Package | Purpose |
+|-------|---------|---------|
+| `[tokens]` | `tiktoken>=0.7` | Accurate token counting |
+| `[docs]` | `openpyxl`, `python-docx`, `python-pptx`, `pymupdf` | Document parsing (Excel, Word, PowerPoint, PDF) |
+| `[watch]` | `watchfiles>=0.21` | File watcher for `watch_repo` auto-reindex |
+| `[all]` | All of the above | Everything |
+
+### Security Features
+
+- **Path traversal blocking**: Prevents accessing files outside the indexed repo
+- **Secrets detection**: Blocks `.env`, `credentials.json`, SSH keys, API keys from being returned
+- **Binary filtering**: Excludes executables, archives, images, compiled code
+- **File size limit**: 10 MB max per file
 
 ## Key Principle
 
