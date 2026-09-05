@@ -278,6 +278,34 @@ Opus  ▐████████░░░░░░░░░░▌ 42% ctx  84.0
   ⚡ Snip  ▐████████████████░░▌ 5 calls  12.3K saved (87%)
 ```
 
+## What Gets Indexed
+
+Snip indexes source files in the 23 supported languages, plus documents (Markdown,
+Excel, Word, PowerPoint, PDF, CSV) when the `docs` extra is installed.
+
+**Exclusions.** Two ignore files are read, in increasing order of precedence:
+
+| File | Notes |
+|---|---|
+| `.gitignore` | Your existing rules are honoured — no extra setup needed |
+| `.snipignore` | Snip-specific rules |
+
+Both use standard gitignore syntax and are combined rather than overriding each
+other. Because `.snipignore` is read last, a negation there can re-include something
+an earlier file excluded:
+
+```gitignore
+# .snipignore — index the fixtures that .gitignore skips
+!tests/fixtures/
+```
+
+Use `.snipignore` when you want something in git but out of the index — large
+generated files, vendored dependencies, fixture data — or the reverse.
+
+**Always excluded**, regardless of ignore files: files that look like secrets, binary
+files, files over 10 MB, and anything resolving outside the indexed folder. This is
+enforced in the security layer and cannot be turned off.
+
 ## Where Everything Lives
 
 ```
